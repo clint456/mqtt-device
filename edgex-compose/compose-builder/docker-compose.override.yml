@@ -1,0 +1,11 @@
+ # docker-compose.override.yml
+
+ version: '3.7'
+
+ services:
+     device-mqtt:
+        environment:
+          DEVICE_DEVICESDIR: /custom-config/devices
+          DEVICE_PROFILESDIR: /custom-config/profiles
+        volumes:
+        - /home/clint/work/edgexFoundry/V3.1/mqtt-mock/custom-config:/custom-config

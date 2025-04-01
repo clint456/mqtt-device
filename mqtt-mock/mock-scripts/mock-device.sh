@@ -1,0 +1,1 @@
+docker run --rm --name=mqtt-scripts -v /home/clint/work/edgexFoundry/V3.1/mqtt-mock/mock-scripts:/scripts  --network host dersimn/mqtt-scripts --dir /scripts

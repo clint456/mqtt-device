@@ -1,0 +1,361 @@
+# /*******************************************************************************
+#  * Copyright 2021 Intel Corporation.
+#  *
+#  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+#  * in compliance with the License. You may obtain a copy of the License at
+#  *
+#  * http://www.apache.org/licenses/LICENSE-2.0
+#  *
+#  * Unless required by applicable law or agreed to in writing, software distributed under the License
+#  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+#  * or implied. See the License for the specific language governing permissions and limitations under
+#  * the License.
+#  *
+#  *******************************************************************************/
+
+version: '3.7'
+
+volumes:
+  edgex-init:
+  vault-config:
+  vault-file:
+  vault-logs:
+  consul-acl-token:
+  # non-shared volumes
+  nginx-templates:
+  nginx-tls:
+  redis-config:
+
+services:
+  security-bootstrapper:
+    image: ${CORE_EDGEX_REPOSITORY}/security-bootstrapper${ARCH}:${CORE_EDGEX_VERSION}
+    user: "root:root" # Must run as root
+    container_name: edgex-security-bootstrapper
+    hostname: edgex-security-bootstrapper
+    networks:
+      - edgex-network
+    read_only: true
+    restart: always
+    env_file:
+      - common-sec-stage-gate.env
+    environment:
+      EDGEX_USER: ${EDGEX_USER}
+      EDGEX_GROUP: ${EDGEX_GROUP}
+    volumes:
+      # use host timezone
+      - /etc/localtime:/etc/localtime:ro
+      - edgex-init:/edgex-init
+    security_opt:
+      - no-new-privileges:true
+
+  database:
+    entrypoint: ["/edgex-init/redis_wait_install.sh"]
+    env_file:
+      - common-security.env
+      - common-sec-stage-gate.env
+    environment:
+      DATABASECONFIG_PATH: /run/redis/conf
+      DATABASECONFIG_NAME: redis.conf
+    tmpfs:
+      - /run
+    volumes:
+      - edgex-init:/edgex-init:ro
+      - redis-config:/run/redis/conf
+      - /tmp/edgex/secrets/security-bootstrapper-redis:/tmp/edgex/secrets/security-bootstrapper-redis:ro,z
+    depends_on:
+      - security-bootstrapper
+      - security-secretstore-setup
+
+  security-secretstore-setup:
+    image: ${CORE_EDGEX_REPOSITORY}/security-secretstore-setup${ARCH}:${CORE_EDGEX_VERSION}
+    user: "root:root" # must run as root
+    container_name: edgex-security-secretstore-setup
+    hostname: edgex-security-secretstore-setup
+    env_file:
+      - common-security.env
+      - common-sec-stage-gate.env
+    environment:
+      EDGEX_USER: ${EDGEX_USER}
+      EDGEX_GROUP: ${EDGEX_GROUP}
+      # Uncomment and modify the following "EDGEX_ADD_SECRETSTORE_TOKENS" to add the additional secret store tokens on the fly
+      # the secret store token is required if you have added registry acl roles from env "EDGEX_ADD_REGISTRY_ACL_ROLES"
+      # in service "consul".
+      #EDGEX_ADD_SECRETSTORE_TOKENS: app-sample,app-rules-engine-redis, app-rules-engine-mqtt, app-push-to-core
+    read_only: true
+    restart: always
+    networks:
+      - edgex-network
+    tmpfs:
+      - /run
+      - /vault
+    volumes:
+      # use host timezone
+      - /etc/localtime:/etc/localtime:ro
+      - edgex-init:/edgex-init:ro
+      - vault-config:/vault/config
+      - /tmp/edgex/secrets:/tmp/edgex/secrets:z
+    depends_on:
+      - security-bootstrapper
+      - vault
+    security_opt:
+      - no-new-privileges:true
+
+  consul:
+    entrypoint: ["/edgex-init/consul_wait_install.sh"]
+    env_file:
+      # needed for vault host/port
+      - common-security.env
+      - common-sec-stage-gate.env
+    environment:
+      EDGEX_USER: ${EDGEX_USER}
+      EDGEX_GROUP: ${EDGEX_GROUP}
+      # uncomment and modify the following "ADD_REGISTRY_ACL_ROLES" to add additional registry ACL roles on the fly
+      # the list is comma-separated service keys for these services
+      #ADD_REGISTRY_ACL_ROLES: app-sample,app-rules-engine-redis, app-rules-engine-mqtt, app-push-to-core
+      STAGEGATE_REGISTRY_ACL_SENTINELFILEPATH: /consul/config/consul_acl_done
+      STAGEGATE_REGISTRY_ACL_BOOTSTRAPTOKENPATH: /tmp/edgex/secrets/consul-acl-token/bootstrap_token.json
+      STAGEGATE_REGISTRY_ACL_MANAGEMENTTOKENPATH: /tmp/edgex/secrets/consul-acl-token/mgmt_token.json
+    volumes:
+      - edgex-init:/edgex-init:ro
+      - /tmp/edgex/secrets/edgex-consul:/tmp/edgex/secrets/edgex-consul:ro,z
+      # using regular volume to avoid lose of token due to host system reboot
+      # and it is only shared between consul and proxy-setup
+      - consul-acl-token:/tmp/edgex/secrets/consul-acl-token
+    depends_on:
+      - security-bootstrapper
+      - vault
+
+  vault:
+    image: hashicorp/vault:${VAULT_VERSION}
+    user: "root:root" # Note that Vault is run under the 'vault' user, but entry point scripts need to first run as root
+    container_name: edgex-vault
+    hostname: edgex-vault
+    networks:
+      - edgex-network
+    ports:
+      - "127.0.0.1:8200:8200"
+    cap_add:
+      - "IPC_LOCK"
+    tmpfs:
+      - /vault/config
+    entrypoint: ["/edgex-init/vault_wait_install.sh"]
+    env_file:
+      - common-sec-stage-gate.env
+    command: server
+    environment:
+      VAULT_ADDR: http://edgex-vault:8200
+      VAULT_CONFIG_DIR: /vault/config
+      VAULT_UI: "true"
+    volumes:
+      - edgex-init:/edgex-init:ro
+      - vault-file:/vault/file
+      - vault-logs:/vault/logs
+    depends_on:
+      - security-bootstrapper
+    restart: always
+
+# containers for reverse proxy
+
+  nginx:
+    image: nginx:${NGINX_VERSION}
+    container_name: edgex-nginx
+    hostname: edgex-nginx
+    read_only: true
+    restart: always
+    networks:
+      edgex-network:
+    ports:
+      - "8443:8443"  # port 8000 (insecure) is not mapped externally)
+    entrypoint: ["/bin/sh", "/edgex-init/nginx_wait_install.sh"]
+    command:
+      - "/docker-entrypoint.sh"
+      - nginx
+      - "-g"
+      - "daemon off;"
+    env_file:
+      - common-sec-stage-gate.env
+    volumes:
+      - edgex-init:/edgex-init:ro
+      - nginx-templates:/etc/nginx/templates
+      - nginx-tls:/etc/ssl/nginx
+    depends_on:
+      - security-secretstore-setup
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /etc/nginx/conf.d
+      - /var/cache/nginx
+      - /var/log/nginx
+      - /var/run
+
+  security-proxy-setup:
+    image: ${CORE_EDGEX_REPOSITORY}/security-proxy-setup${ARCH}:${CORE_EDGEX_VERSION}
+    user: "root:root"
+    container_name: edgex-security-proxy-setup
+    hostname: edgex-security-proxy-setup
+    entrypoint: ["/edgex-init/proxy_setup_wait_install.sh"]
+    read_only: true
+    restart: always
+    networks:
+      - edgex-network
+    env_file:
+      - common-security.env
+      - common-sec-stage-gate.env
+    environment:
+      ROUTES_CORE_CONSUL_HOST: edgex-core-consul
+      ROUTES_CORE_DATA_HOST: edgex-core-data
+      ROUTES_CORE_METADATA_HOST: edgex-core-metadata
+      ROUTES_CORE_COMMAND_HOST: edgex-core-command
+      ROUTES_SUPPORT_NOTIFICATIONS_HOST: edgex-support-notifications
+      ROUTES_SUPPORT_SCHEDULER_HOST: edgex-support-scheduler
+      ROUTES_SYS_MGMT_AGENT_HOST: edgex-sys-mgmt-agent
+      ROUTES_RULES_ENGINE_HOST: edgex-kuiper
+      ROUTES_DEVICE_VIRTUAL_HOST: device-virtual
+    volumes:
+      # use host timezone
+      - /etc/localtime:/etc/localtime:ro
+      - edgex-init:/edgex-init:ro
+      - vault-config:/vault/config
+      - nginx-templates:/etc/nginx/templates
+      - nginx-tls:/etc/ssl/nginx
+      - /tmp/edgex/secrets/security-proxy-setup:/tmp/edgex/secrets/security-proxy-setup:ro,z
+      - consul-acl-token:/tmp/edgex/secrets/consul-acl-token:ro
+    depends_on:
+      - security-bootstrapper
+      - security-secretstore-setup
+    security_opt:
+      - no-new-privileges:true
+
+  security-proxy-auth:
+    image: ${CORE_EDGEX_REPOSITORY}/security-proxy-auth${ARCH}:${CORE_EDGEX_VERSION}
+    container_name: edgex-proxy-auth
+    hostname: edgex-proxy-auth
+    read_only: true
+    restart: always
+    networks:
+      - edgex-network
+    entrypoint: ["/bin/sh", "/edgex-init/ready_to_run_wait_install.sh"]
+    command:
+      - "entrypoint.sh"
+      - "/security-proxy-auth"
+      - "-cp=consul.http://edgex-core-consul:8500"
+      - "--registry"
+    env_file:
+      - common-security.env
+      - common-sec-stage-gate.env
+    environment:
+      SERVICE_HOST: edgex-proxy-auth
+    ports:
+      - "127.0.0.1:59842:59842"
+    volumes:
+      # use host timezone
+      - /etc/localtime:/etc/localtime:ro
+      - edgex-init:/edgex-init:ro
+      - /tmp/edgex/secrets/security-proxy-auth:/tmp/edgex/secrets/security-proxy-auth:ro,z
+    depends_on:
+      - security-secretstore-setup
+    security_opt:
+      - no-new-privileges:true
+
+# end of containers for reverse proxy
+
+  support-notifications:
+    env_file:
+      - common-security.env
+      - common-sec-stage-gate.env
+    entrypoint: ["/edgex-init/ready_to_run_wait_install.sh"]
+    command: "/support-notifications ${DEFAULT_EDGEX_RUN_CMD_PARMS}"
+    volumes:
+      - edgex-init:/edgex-init:ro
+      - /tmp/edgex/secrets/support-notifications:/tmp/edgex/secrets/support-notifications:ro,z
+    depends_on:
+      - security-bootstrapper
+      - security-secretstore-setup
+      - database
+
+  core-metadata:
+    env_file:
+      - common-security.env
+      - common-sec-stage-gate.env
+    entrypoint: ["/edgex-init/ready_to_run_wait_install.sh"]
+    command: "/core-metadata ${DEFAULT_EDGEX_RUN_CMD_PARMS}"
+    volumes:
+      - edgex-init:/edgex-init:ro
+      - /tmp/edgex/secrets/core-metadata:/tmp/edgex/secrets/core-metadata:ro,z
+    depends_on:
+      - security-bootstrapper
+      - security-secretstore-setup
+      - database
+
+  core-data:
+    env_file:
+      - common-security.env
+      - common-sec-stage-gate.env
+    entrypoint: ["/edgex-init/ready_to_run_wait_install.sh"]
+    command: "/core-data ${DEFAULT_EDGEX_RUN_CMD_PARMS}"
+    volumes:
+      - edgex-init:/edgex-init:ro
+      - /tmp/edgex/secrets/core-data:/tmp/edgex/secrets/core-data:ro,z
+    depends_on:
+      - security-bootstrapper
+      - security-secretstore-setup
+      - database
+
+  core-command:
+    env_file:
+      - common-security.env
+      - common-sec-stage-gate.env
+    entrypoint: ["/edgex-init/ready_to_run_wait_install.sh"]
+    command: "/core-command ${DEFAULT_EDGEX_RUN_CMD_PARMS}"
+    volumes:
+      - edgex-init:/edgex-init:ro
+      - /tmp/edgex/secrets/core-command:/tmp/edgex/secrets/core-command:ro,z
+    depends_on:
+      - security-bootstrapper
+      - security-secretstore-setup
+      - database
+
+  core-common-config-bootstrapper:
+    env_file:
+      - common-security.env
+      - common-sec-stage-gate.env
+    entrypoint: ["/edgex-init/ready_to_run_wait_install.sh"]
+    command: ["/entrypoint.sh", "/core-common-config-bootstrapper", "-cp=consul.http://edgex-core-consul:8500"]
+    volumes:
+      - edgex-init:/edgex-init:ro
+      - /tmp/edgex/secrets/core-common-config-bootstrapper:/tmp/edgex/secrets/core-common-config-bootstrapper:ro,z
+    depends_on:
+      - security-bootstrapper
+      - security-secretstore-setup
+
+  support-scheduler:
+    env_file:
+      - common-security.env
+      - common-sec-stage-gate.env
+    entrypoint: ["/edgex-init/ready_to_run_wait_install.sh"]
+    command: "/support-scheduler ${DEFAULT_EDGEX_RUN_CMD_PARMS}"
+    volumes:
+      - edgex-init:/edgex-init:ro
+      - /tmp/edgex/secrets/support-scheduler:/tmp/edgex/secrets/support-scheduler:ro,z
+    depends_on:
+      - security-bootstrapper
+      - security-secretstore-setup
+      - database
+
+  # this is to make sure the service is started after security-bootstrapper process is done
+  # because it needs to await Consul roles to be created
+  app-rules-engine:
+    entrypoint: ["/edgex-init/ready_to_run_wait_install.sh"]
+    command: "/app-service-configurable ${DEFAULT_EDGEX_RUN_CMD_PARMS}"
+    env_file:
+      - common-security.env
+      - common-sec-stage-gate.env
+    volumes:
+      - edgex-init:/edgex-init:ro
+      - /tmp/edgex/secrets/app-rules-engine:/tmp/edgex/secrets/app-rules-engine:ro,z
+    depends_on:
+      - security-bootstrapper
+
+  ui:
+    environment:
+      EDGEX_SECURITY_SECRET_STORE: "true"
