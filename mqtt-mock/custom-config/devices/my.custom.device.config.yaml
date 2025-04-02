@@ -8,6 +8,6 @@ deviceList:
     mqtt:
       CommandTopic: "command/my-mqtt-device"
   autoEvents:
-    - interval: "30s"
+    - interval: "5s"
       onChange: false
-      sourceName: "message"
+      sourceName: "randnum"

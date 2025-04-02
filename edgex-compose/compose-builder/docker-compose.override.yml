@@ -8,4 +8,4 @@
           DEVICE_DEVICESDIR: /custom-config/devices
           DEVICE_PROFILESDIR: /custom-config/profiles
         volumes:
-        - /home/clint/work/edgexFoundry/V3.1/mqtt-mock/custom-config:/custom-config
+        - /home/clint/work/edgexFoundry/v3.1/mqtt-device/mqtt-mock/custom-config:/custom-config
