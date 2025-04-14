@@ -19,7 +19,7 @@ services:
       edgex-network: null
     ports:
       - mode: ingress
-        host_ip: 127.0.0.1
+        host_ip: 0.0.0.0
         target: 59701
         published: "59701"
         protocol: tcp
@@ -50,7 +50,7 @@ services:
       edgex-network: null
     ports:
       - mode: ingress
-        host_ip: 127.0.0.1
+        host_ip: 0.0.0.0
         target: 8500
         published: "8500"
         protocol: tcp
@@ -90,7 +90,7 @@ services:
       edgex-network: null
     ports:
       - mode: ingress
-        host_ip: 127.0.0.1
+        host_ip: 0.0.0.0
         target: 59882
         published: "59882"
         protocol: tcp
@@ -155,7 +155,7 @@ services:
       edgex-network: null
     ports:
       - mode: ingress
-        host_ip: 127.0.0.1
+        host_ip: 0.0.0.0
         target: 59880
         published: "59880"
         protocol: tcp
@@ -189,7 +189,7 @@ services:
       edgex-network: null
     ports:
       - mode: ingress
-        host_ip: 127.0.0.1
+        host_ip: 0.0.0.0
         target: 59881
         published: "59881"
         protocol: tcp
@@ -213,7 +213,7 @@ services:
       edgex-network: null
     ports:
       - mode: ingress
-        host_ip: 127.0.0.1
+        host_ip: 0.0.0.0
         target: 6379
         published: "6379"
         protocol: tcp
@@ -252,7 +252,7 @@ services:
       edgex-network: null
     ports:
       - mode: ingress
-        host_ip: 127.0.0.1
+        host_ip: 0.0.0.0
         target: 59982
         published: "59982"
         protocol: tcp
@@ -280,7 +280,7 @@ services:
       edgex-network: null
     ports:
       - mode: ingress
-        host_ip: 127.0.0.1
+        host_ip: 0.0.0.0
         target: 1883
         published: "1883"
         protocol: tcp
@@ -313,7 +313,7 @@ services:
       edgex-network: null
     ports:
       - mode: ingress
-        host_ip: 127.0.0.1
+        host_ip: 0.0.0.0
         target: 59720
         published: "59720"
         protocol: tcp
@@ -363,7 +363,7 @@ services:
       edgex-network: null
     ports:
       - mode: ingress
-        host_ip: 127.0.0.1
+        host_ip: 0.0.0.0
         target: 59860
         published: "59860"
         protocol: tcp
@@ -399,7 +399,7 @@ services:
       edgex-network: null
     ports:
       - mode: ingress
-        host_ip: 127.0.0.1
+        host_ip: 0.0.0.0
         target: 59861
         published: "59861"
         protocol: tcp

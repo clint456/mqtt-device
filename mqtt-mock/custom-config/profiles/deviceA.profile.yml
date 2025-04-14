@@ -1,7 +1,7 @@
-name: "my-mqtt-device-profile"
+name: "deviceA-profile"
 manufacturer: "iot"
 model: "MQTT-DEVICE"
-description: "Test device profile"
+description: "Test deviceA profile"
 labels:
   - "mqtt"
   - "test"
@@ -9,21 +9,21 @@ deviceResources:
   -
     name: randnum
     isHidden: true
-    description: "device random number"
+    description: "deviceA random number"
     properties:
       valueType: "Float32"
       readWrite: "R"
   -
     name: ping
     isHidden: true
-    description: "device awake"
+    description: "deviceA awake"
     properties:
       valueType: "String"
       readWrite: "R"
   -
     name: message
     isHidden: false
-    description: "device message"
+    description: "deviceA message"
     properties:
       valueType: "String"
       readWrite: "RW"

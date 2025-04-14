@@ -1,0 +1,13 @@
+# Pre-define Devices
+deviceList:
+- name: "deviceA"
+  profileName: "deviceA-profile"
+  description: "MQTT deviceA"
+  labels: [ "MQTT", "test" ]
+  protocols:
+    mqtt:
+      CommandTopic: "command/devices-topic"
+  autoEvents:
+    - interval: "5s"
+      onChange: false
+      sourceName: "randnum"

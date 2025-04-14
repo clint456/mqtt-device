@@ -1,12 +1,12 @@
 # Pre-define Devices
 deviceList:
-- name: "my-mqtt-device"
-  profileName: "my-mqtt-device-profile"
-  description: "MQTT device is created for test purpose"
+- name: "deviceB"
+  profileName: "deviceB-profile"
+  description: "MQTT deviceB"
   labels: [ "MQTT", "test" ]
   protocols:
     mqtt:
-      CommandTopic: "command/my-mqtt-device"
+      CommandTopic: "command/devices-topic"
   autoEvents:
     - interval: "5s"
       onChange: false

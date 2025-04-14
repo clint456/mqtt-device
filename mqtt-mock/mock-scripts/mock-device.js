@@ -6,20 +6,17 @@ const deviceName = "my-mqtt-device";
 let message = "test-message";
 let json = {"name" : "My JSON"};
 
-// DataSender sends async value to MQTT broker every 15 seconds
 schedule('*/15 * * * * *', ()=>{
     var data = {};
     data.randnum = getRandomFloat(25,29).toFixed(1);
     data.ping = "pong"
-    data.message = "Hello World"
+    data.message = "Hello World "
 
-    publish( 'incoming/data/my-mqtt-device/values', JSON.stringify(data));
+    publish( 'incoming/data/devices-topic/values', JSON.stringify(data));
 });
 
-// CommandHandler receives commands and sends response to MQTT broker
-// 1. Receive the reading request, then return the response
-// 2. Receive the set request, then change the device value
-subscribe( "command/my-mqtt-device/#" , (topic, val) => {
+
+subscribe( "command/devices-topic/#" , (topic, val) => {
     const words = topic.split('/');
     var cmd = words[2];
     var method = words[3];
@@ -54,4 +51,5 @@ subscribe( "command/my-mqtt-device/#" , (topic, val) => {
     }
     var sendTopic ="command/response/"+ uuid;
     publish( sendTopic, JSON.stringify(response));
+    // publish('incoming/data/devices-topic/values',JSON.stringify(response))
 });
