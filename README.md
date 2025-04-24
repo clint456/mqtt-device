@@ -5,7 +5,7 @@
 ```bash
 cd ./degex-compose/compose-builder/
 ```
-> 将docker-compose.override.yml中的`/home/clint/work/mqtt-device/mqtt-mock/custom-config`修改为自己的路径
+将docker-compose.override.yml中的`/home/clint/work/mqtt-device/mqtt-mock/custom-config`修改为自己的路径
 ![image](https://github.com/user-attachments/assets/d7ef56a7-72e5-47fe-8e67-e7df88fa06be)
 
 ```bash
@@ -16,12 +16,12 @@ sudo bash start.sh
 ```bash
 cd ./mqtt-mock/mock-scripts
 ```
-> 将mock-device.sh中的`/home/clint/work/mqtt-device/mqtt-mock/mock-scripts`改为自己的路径
+将mock-device.sh中的`/home/clint/work/mqtt-device/mqtt-mock/mock-scripts`改为自己的路径
 ![image](https://github.com/user-attachments/assets/253cbc2b-3dde-49ed-a1e2-eb97611fa04e)
 ```bash
 sudo bash mock-device.sh
 ```
-> 显示如下表示成功
+显示如下表示成功
 ![image](https://github.com/user-attachments/assets/65a65056-0543-4ab3-9c2e-f53cc68dde3a)
 
 
